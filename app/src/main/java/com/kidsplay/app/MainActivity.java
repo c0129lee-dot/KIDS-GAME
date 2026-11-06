@@ -8,6 +8,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebChromeClient;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
@@ -43,6 +44,7 @@ public class MainActivity extends Activity {
         });
         web = new WebView(this);
         web.setWebViewClient(new WebViewClient());
+        web.setWebChromeClient(new WebChromeClient());
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);

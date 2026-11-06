@@ -1,4 +1,4 @@
-# 🌈 키즈 플레이 v2.1
+# 🌈 키즈 플레이 v2.2
 
 갤럭시탭에서 가로 화면으로 즐기는 **오프라인 어린이 게임 앱**입니다. Android WebView가 `app/src/main/assets/index.html`을 실행하며, 인터넷 연결 없이 플레이할 수 있습니다.
 
@@ -15,7 +15,7 @@
 ## Android 앱 정보
 
 - 앱 이름: 키즈 플레이
-- 버전: **2.1** (`versionCode 5`)
+- 버전: **2.2** (`versionCode 6`)
 - 패키지: `com.kidsplay.app`
 - 웹 게임: `app/src/main/assets/index.html`
 - APK 빌드: `.github/workflows/build-apk.yml`
@@ -24,7 +24,7 @@
 
 1. 저장소의 [Actions](https://github.com/c0129lee-dot/KIDS-GAME/actions) 탭을 엽니다.
 2. **Build Kids Play APK** 워크플로의 가장 최근 **성공한 실행**을 선택합니다.
-3. **Artifacts**에서 `KidsPlay-v2.1-debug` 파일을 다운로드합니다.
+3. **Artifacts**에서 `KidsPlay-v2.2-debug` 파일을 다운로드합니다.
 4. ZIP 압축을 풀고 `app-debug.apk`를 갤럭시탭에 설치합니다.
 5. 필요하면 안드로이드의 **알 수 없는 앱 설치**를 허용합니다.
 

@@ -106,23 +106,42 @@ function savePuzzle(){if(puzzle)try{localStorage.setItem('kidsplay_puzzle_save',
 function puzzleHome(){savePuzzle();openPuzzleGallery()}
 function jigsawShape(i,rows,cols,w,h){const r=Math.floor(i/cols),c=i%cols,m=Math.min(w,h)*.17,W=w+2*m,H=h+2*m,x=m,y=m;const top=r===0?0:((r+c)%2?1:-1),right=c===cols-1?0:((r+c)%2?-1:1),bottom=r===rows-1?0:((r+c)%2?-1:1),left=c===0?0:((r+c)%2?1:-1);let d='M '+x+' '+y;const tab=(sx,sy,ex,ey,n,sign)=>{if(!sign){d+=' L '+ex+' '+ey;return}let dx=ex-sx,dy=ey-sy,px=-dy/n,py=dx/n;const pt=(t,v)=>[sx+dx*t+px*v*sign,sy+dy*t+py*v*sign];for(let [t,v] of [[.30,0],[.34,0],[.36,.32],[.39,.78],[.46,1],[.54,1],[.61,.78],[.64,.32],[.66,0],[.70,0],[1,0]]){let [a,b]=pt(t,v);d+=' L '+a.toFixed(2)+' '+b.toFixed(2)}};tab(x,y,x+w,y,w,top);tab(x+w,y,x+w,y+h,h,right);tab(x+w,y+h,x,y+h,w,bottom);tab(x,y+h,x,y,h,left);return {path:d+' Z',margin:m,W,H}}
 function jigsawClip(el,i,rows,cols,w,h){
- // Android WebView may not resolve a CSS clip-path referencing an SVG
- // clipPath inside a child element, leaving every piece invisible.
- // Render reliable image-backed rectangular tiles until image assets
- // and a WebView-compatible jigsaw mask are available.
- el.style.width=w+'px';el.style.height=h+'px';
- el.style.clipPath='none';
+ // Polygon-based jigsaw silhouette: Android WebView supports CSS clip-path
+ // polygons without external SVG references. Adjacent edges share profiles.
+ const r=Math.floor(i/cols),c=i%cols,m=Math.min(w,h)*.17;
+ const W=w+2*m,H=h+2*m,points=[];
+ const add=(x,y)=>points.push((100*x/W).toFixed(3)+'% '+(100*y/H).toFixed(3)+'%');
+ const top=c=>{}; // Edge samples are expressed in tile-local coordinates.
+ const edge=(side,sign)=>{
+   // sign +1 extends outward, -1 creates a socket.
+   const steps=32;
+   for(let k=0;k<=steps;k++){
+     const t=k/steps,shape=(t>.31&&t<.69)?Math.sin(Math.PI*(t-.31)/.38)**2:0;
+     const bump=sign*m*1.12*shape;
+     if(side===0)add(m+t*w,m-bump);
+     if(side===1)add(m+w+bump,m+t*h);
+     if(side===2)add(m+(1-t)*w,m+h+bump);
+     if(side===3)add(m-bump,m+(1-t)*h);
+   }
+ };
+ // Neighboring pieces have matching bump/socket direction.
+ edge(0,r===0?0:((r+c-1)%2===0?1:-1));
+ edge(1,c===cols-1?0:((r+c)%2===0?1:-1));
+ edge(2,r===rows-1?0:((r+c)%2===0?1:-1));
+ edge(3,c===0?0:((r+c-1)%2===0?1:-1));
+ el.style.width=W+'px';el.style.height=H+'px';
+ el.style.clipPath='polygon('+points.join(',')+')';
+ el.style.webkitClipPath=el.style.clipPath;
  el.style.backgroundSize=(w*cols)+'px '+(h*rows)+'px';
- el.style.backgroundPosition=(-(i%cols)*w)+'px '+(-Math.floor(i/cols)*h)+'px';
- el.style.border='2px solid rgba(255,255,255,.95)';
- el.style.borderRadius='5px';
- return 0;
+ el.style.backgroundPosition=(m-c*w)+'px '+(m-r*h)+'px';
+ el.style.border='0';el.style.borderRadius='0';
+ return m;
 }
-function renderPuzzle(){if(!puzzle)return;if(puzzle.hintsLeft===undefined)puzzle.hintsLeft=2;$('puzzleHintButton').textContent='💡 힌트 '+puzzle.hintsLeft+'/2';$('puzzleHintButton').disabled=puzzle.hintsLeft<=0;const [rows,cols]={easy:[3,4],normal:[4,6],hard:[6,6]}[puzzle.level],n=rows*cols,p=puzzleCatalog[puzzle.id];$('puzzleName').textContent=p.name;$('puzzlePreview').innerHTML=puzzleImageTag(puzzle.id,'width="100%" height="85%"')+'<small>완성 그림</small>';const board=$('puzzleBoard');board.style.gridTemplateColumns='repeat('+cols+',1fr)';board.style.gridTemplateRows='repeat('+rows+',1fr)';board.innerHTML='';for(let i=0;i<n;i++){let d=document.createElement('div');d.className='slot';d.dataset.slot=i;board.appendChild(d)}let area=$('puzzlePieces');area.innerHTML='';const stage=$('puzzleStage'),bw=stage.clientWidth*.52,bh=stage.clientHeight*.88,w=bw/cols,h=bh/rows;for(let i=0;i<n;i++){let el=document.createElement('div');el.className='puzzlePiece';el.dataset.piece=i;el.style.backgroundImage='url("'+puzzleImage(puzzle.id)+'")';el.style.backgroundSize=bw+'px '+bh+'px';el.style.backgroundPosition=(-1*(i%cols)*w)+'px '+(-1*Math.floor(i/cols)*h)+'px';let margin=jigsawClip(el,i,rows,cols,w,h);el.style.border='0';if(puzzle.placed[i]){el.classList.add('fixed');el.style.left=(stage.clientWidth*.24+(i%cols)*w-margin)+'px';el.style.top=(stage.clientHeight*.05+Math.floor(i/cols)*h-margin)+'px'}else{let pos=puzzle.positions[i]||randomPuzzlePosition(i,n);puzzle.positions[i]=pos;el.style.left=(pos[0]*stage.clientWidth)+'px';el.style.top=(pos[1]*stage.clientHeight)+'px';el.addEventListener('pointerdown',puzzlePointerDown)}area.appendChild(el)}updatePuzzleProgress()}
+function renderPuzzle(){if(!puzzle)return;if(puzzle.hintsLeft===undefined)puzzle.hintsLeft=2;$('puzzleHintButton').textContent='💡 힌트 '+puzzle.hintsLeft+'/2';$('puzzleHintButton').disabled=puzzle.hintsLeft<=0;const [rows,cols]={easy:[3,4],normal:[4,6],hard:[6,6]}[puzzle.level],n=rows*cols,p=puzzleCatalog[puzzle.id];$('puzzleName').textContent=p.name;$('puzzlePreview').innerHTML=puzzleImageTag(puzzle.id,'width="100%" height="85%"')+'<small>완성 그림</small>';const board=$('puzzleBoard');board.style.gridTemplateColumns='repeat('+cols+',1fr)';board.style.gridTemplateRows='repeat('+rows+',1fr)';board.innerHTML='';for(let i=0;i<n;i++){let d=document.createElement('div');d.className='slot';d.dataset.slot=i;board.appendChild(d)}let area=$('puzzlePieces');area.innerHTML='';const stage=$('puzzleStage'),bw=stage.clientWidth*.52,bh=stage.clientHeight*.88,w=bw/cols,h=bh/rows;for(let i=0;i<n;i++){let el=document.createElement('div');el.className='puzzlePiece';el.dataset.piece=i;el.style.backgroundImage='url("'+puzzleImage(puzzle.id)+'")';el.style.backgroundSize=bw+'px '+bh+'px';el.style.backgroundPosition=(-1*(i%cols)*w)+'px '+(-1*Math.floor(i/cols)*h)+'px';let margin=jigsawClip(el,i,rows,cols,w,h);el.style.border='0';if(puzzle.placed[i]){el.classList.add('fixed');el.style.left=(stage.clientWidth*.24+(i%cols)*w-margin)+'px';el.style.top=(stage.clientHeight*.05+Math.floor(i/cols)*h-margin)+'px'}else{let pos=puzzle.positions[i]||randomPuzzlePosition(i,n);puzzle.positions[i]=pos;el.style.left=(pos[0]*stage.clientWidth-margin)+'px';el.style.top=(pos[1]*stage.clientHeight-margin)+'px';el.addEventListener('pointerdown',puzzlePointerDown)}area.appendChild(el)}updatePuzzleProgress()}
 function randomPuzzlePosition(i,n){let side=i%2===0?0:1;return [side===0?Math.random()*.14:.79+Math.random()*.08,side===0?Math.random()*.78+.04:.43+Math.random()*.36]}
 function puzzlePointerDown(e){if(!puzzle||puzzleDrag)return;e.preventDefault();let el=e.currentTarget,stage=$('puzzleStage'),rect=stage.getBoundingClientRect(),left=parseFloat(el.style.left),top=parseFloat(el.style.top);puzzleDrag={el,index:+el.dataset.piece,x:e.clientX,y:e.clientY,left,top};el.setPointerCapture(e.pointerId);el.style.zIndex=9;el.addEventListener('pointermove',puzzlePointerMove);el.addEventListener('pointerup',puzzlePointerUp,{once:true});el.addEventListener('pointercancel',puzzlePointerUp,{once:true})}
 function puzzlePointerMove(e){if(!puzzleDrag)return;let d=puzzleDrag,stage=$('puzzleStage');let x=Math.max(0,Math.min(stage.clientWidth-d.el.offsetWidth,d.left+e.clientX-d.x)),y=Math.max(0,Math.min(stage.clientHeight-d.el.offsetHeight,d.top+e.clientY-d.y-18));let preview=$('puzzlePreview');let pr=preview.getBoundingClientRect(),sr=stage.getBoundingClientRect();let px=pr.left-sr.left,py=pr.top-sr.top,pw=pr.width,ph=pr.height;if(x<px+pw&&x+d.el.offsetWidth>px&&y<py+ph&&y+d.el.offsetHeight>py){let below=py+ph+5,above=py-d.el.offsetHeight-5,left=px-d.el.offsetWidth-5;let options=[[x,below],[x,above],[left,y]].filter(p=>p[0]>=0&&p[1]>=0&&p[0]+d.el.offsetWidth<=stage.clientWidth&&p[1]+d.el.offsetHeight<=stage.clientHeight);if(options.length){options.sort((a,b)=>(a[0]-x)**2+(a[1]-y)**2-(b[0]-x)**2-(b[1]-y)**2);[x,y]=options[0]}}d.el.style.left=x+'px';d.el.style.top=y+'px'}
-function puzzlePointerUp(e){if(!puzzleDrag)return;let d=puzzleDrag;puzzleDrag=null;d.el.removeEventListener('pointermove',puzzlePointerMove);let stage=$('puzzleStage'),[rows,cols]={easy:[3,4],normal:[4,6],hard:[6,6]}[puzzle.level],w=stage.clientWidth*.52/cols,h=stage.clientHeight*.88/rows,m=0,targetX=stage.clientWidth*.24+(d.index%cols)*w-m,targetY=stage.clientHeight*.05+Math.floor(d.index/cols)*h-m,x=parseFloat(d.el.style.left),y=parseFloat(d.el.style.top);if(Math.hypot(x-targetX,y-targetY)<Math.max(42,Math.min(w,h)*.75)){puzzle.placed[d.index]=true;d.el.classList.add('fixed');d.el.style.left=targetX+'px';d.el.style.top=targetY+'px';d.el.style.zIndex=1;sfx('match');updatePuzzleProgress();if(puzzle.placed.every(Boolean)){finishPuzzle();return}}else{d.el.style.left=d.left+'px';d.el.style.top=d.top+'px';d.el.style.zIndex=2}savePuzzle()}
+function puzzlePointerUp(e){if(!puzzleDrag)return;let d=puzzleDrag;puzzleDrag=null;d.el.removeEventListener('pointermove',puzzlePointerMove);let stage=$('puzzleStage'),[rows,cols]={easy:[3,4],normal:[4,6],hard:[6,6]}[puzzle.level],w=stage.clientWidth*.52/cols,h=stage.clientHeight*.88/rows,m=Math.min(w,h)*.17,targetX=stage.clientWidth*.24+(d.index%cols)*w-m,targetY=stage.clientHeight*.05+Math.floor(d.index/cols)*h-m,x=parseFloat(d.el.style.left),y=parseFloat(d.el.style.top);if(Math.hypot(x-targetX,y-targetY)<Math.max(42,Math.min(w,h)*.75)){puzzle.placed[d.index]=true;d.el.classList.add('fixed');d.el.style.left=targetX+'px';d.el.style.top=targetY+'px';d.el.style.zIndex=1;sfx('match');updatePuzzleProgress();if(puzzle.placed.every(Boolean)){finishPuzzle();return}}else{d.el.style.left=d.left+'px';d.el.style.top=d.top+'px';d.el.style.zIndex=2}savePuzzle()}
 function updatePuzzleProgress(){let count=puzzle.placed.filter(Boolean).length;$('puzzleProgress').textContent=count+' / '+puzzle.placed.length;$('puzzleBar').style.width=(100*count/puzzle.placed.length)+'%'}
 function puzzleHint(){if(!puzzle||puzzleDrag)return;if(puzzle.hintsLeft===undefined)puzzle.hintsLeft=2;if(puzzle.hintsLeft<=0)return;let ids=puzzle.placed.map((x,i)=>x?-1:i).filter(i=>i>=0);if(!ids.length)return;let i=ids[rnd(0,ids.length-1)],el=$('puzzlePieces').querySelector('[data-piece="'+i+'"]');if(!el)return;const stage=$('puzzleStage'),[rows,cols]={easy:[3,4],normal:[4,6],hard:[6,6]}[puzzle.level],w=stage.clientWidth*.52/cols,h=stage.clientHeight*.88/rows;el.style.left=(stage.clientWidth*.24+(i%cols)*w-0)+'px';el.style.top=(stage.clientHeight*.05+Math.floor(i/cols)*h-0)+'px';el.classList.add('fixed','hinted');el.style.zIndex=1;el.style.pointerEvents='none';puzzle.placed[i]=true;puzzle.hintsLeft--;$('puzzleHintButton').textContent='💡 힌트 '+puzzle.hintsLeft+'/2';$('puzzleHintButton').disabled=puzzle.hintsLeft<=0;sfx('match');updatePuzzleProgress();savePuzzle();setTimeout(()=>el.classList.remove('hinted'),550);if(puzzle.placed.every(Boolean))finishPuzzle()}
 function puzzleShuffle(){if(!puzzle||puzzleDrag)return;puzzle.positions=Array.from({length:puzzle.placed.length},(_,i)=>puzzle.placed[i]?puzzle.positions[i]:randomPuzzlePosition(i,puzzle.placed.length));renderPuzzle();savePuzzle()}

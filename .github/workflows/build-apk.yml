@@ -36,7 +36,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           from zipfile import ZipFile
-          archive = Path('KidsPlay_Puzzle_Images_30.zip')
+          archive = Path('KidsPlay_30_Images_Upload_v2.zip')
           dest = Path('app/src/main/assets/puzzles')
           if not archive.exists():
               print('Puzzle ZIP not uploaded yet; using existing SVG fallback')

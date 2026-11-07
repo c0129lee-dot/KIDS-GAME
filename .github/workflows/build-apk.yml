@@ -51,6 +51,26 @@ jobs:
                       (dest / Path(name).name).write_bytes(z.read(name))
                   print('Installed 30 puzzle images for offline APK')
           PY
+      - name: Install 60 collectible toy images
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          archive = Path('KidsPlay_Toys_60_App.zip')
+          dest = Path('app/src/main/assets/toys')
+          if archive.exists():
+              with ZipFile(archive) as z:
+                  expected = [f'toys/{i:02}.webp' for i in range(1,61)]
+                  missing = [x for x in expected if x not in z.namelist()]
+                  if missing:
+                      raise SystemExit('Missing toy images: ' + ', '.join(missing))
+                  dest.mkdir(parents=True, exist_ok=True)
+                  for name in expected:
+                      (dest / Path(name).name).write_bytes(z.read(name))
+                  print('Installed 60 collectible toys for offline APK')
+          else:
+              print('Toy archive not uploaded yet; emoji placeholders remain')
+          PY
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
       - name: Verify APK output
